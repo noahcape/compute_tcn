@@ -1,0 +1,8 @@
+[package]
+name = "compute_tcn"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5.28", features = ["derive"] }
+tcn = { git = "https://github.com/noahcape/tcn", branch = "main" }
