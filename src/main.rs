@@ -1,31 +1,62 @@
-use std::{fs, io::Write};
+use std::{
+    fs,
+    io::{BufRead, BufReader, Write},
+};
 
 use clap::Parser;
 
 use tcn::*;
 
-fn skeleton_classes(nontroplanar_dir: String, genus: usize, out: String) -> Result<(), String> {
+fn skeleton_classes(
+    nontroplanar_dir: String,
+    genus: usize,
+    out: String,
+    tfile: String,
+) -> Result<(), String> {
     // enusre we have correct genus as input
     assert!(genus > 3 && genus < 9);
 
-    let lines = std::io::stdin().lines();
+    let filename = std::path::Path::new(&tfile)
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap();
+    let file = match fs::File::open(tfile.clone()) {
+        Ok(f) => f,
+        Err(_) => return Err(format!("failed to open file {tfile}")),
+    };
+    let fbuf = BufReader::new(file);
 
-    let (mut subdivisions, flips, mut subdivision_idxs) = utils::parse_input(lines);
+    println!("Parsing triangulations and flips from {}", tfile);
+    let (mut subdivisions, flips, mut subdivision_idxs) = utils::parse_input(
+        fbuf.lines()
+            .map(|l| l.expect(&format!("Could not parse line from {tfile}")))
+            .collect(),
+    );
 
     let nodes = genus - 3;
 
-    for node in 0..nodes {
-        let genus_str = format!("genus{}", genus + node);
-        let nontroplanar_file = format!("{}/{}.txt", nontroplanar_dir, genus_str);
+    for node in 1..=nodes {
+        let genus_str = format!("genus{}", genus - node);
+        let nontroplanar_file = format!("{}/{genus_str}.txt", nontroplanar_dir);
+        println!("Computing genus {} graphs of {} triangulations with {} node(s)", genus - node, tfile, node);
 
         match fs::DirBuilder::new().recursive(true).create(&out) {
             Ok(_) => (),
-            Err(_) => return Err(format!("Failed out create dur {out}")),
+            Err(_) => return Err(format!("Failed out create dir {out}")),
         }
 
-        let mut out_f = match fs::File::create(format!("{out}/{genus_str}.txt")) {
+        let mut out_f = match fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .open(format!("{out}/{genus_str}/from_{filename}"))
+        {
             Ok(f) => f,
-            Err(_) => return Err(format!("Failed out create file {out}/{genus_str}.txt")),
+            Err(e) => {
+                return Err(format!(
+                    "Failed out create file ./{out}/{genus_str}/from_{filename} -- {e}"
+                ))
+            }
         };
 
         (subdivisions, subdivision_idxs) =
@@ -102,11 +133,15 @@ struct Args {
     /// Directory to write file out to
     #[arg(short, long)]
     out: String,
+
+    /// Topcom file with triangulations and flips
+    #[arg(short, long)]
+    tfile: String,
 }
 
 fn main() {
     let args = Args::parse();
-    match skeleton_classes(args.nontroplanar_dir, args.genus, args.out) {
+    match skeleton_classes(args.nontroplanar_dir, args.genus, args.out, args.tfile) {
         Ok(_) => (),
         Err(e) => panic!("{e}"),
     };
