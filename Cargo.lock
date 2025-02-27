@@ -244,7 +244,7 @@ dependencies = [
 [[package]]
 name = "tcn"
 version = "0.1.0"
-source = "git+https://github.com/noahcape/tcn?branch=main#400d9d9b7e47ca6255e7c66d2c3db2b564b8848d"
+source = "git+https://github.com/noahcape/tcn?branch=main#e64f5310c4814737cb4cbeaf9a690c98ca2c716a"
 dependencies = [
  "clap",
  "petgraph",

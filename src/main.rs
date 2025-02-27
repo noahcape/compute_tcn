@@ -39,9 +39,14 @@ fn skeleton_classes(
     for node in 1..=nodes {
         let genus_str = format!("genus{}", genus - node);
         let nontroplanar_file = format!("{}/{genus_str}.txt", nontroplanar_dir);
-        println!("Computing genus {} graphs of {} triangulations with {} node(s)", genus - node, tfile, node);
+        println!(
+            "Computing genus {} graphs of {} triangulations with {} node(s)",
+            genus - node,
+            tfile,
+            node
+        );
 
-	let out_dir = format!("./{out}/{genus_str}");
+        let out_dir = format!("./{out}/{genus_str}");
         match fs::DirBuilder::new().recursive(true).create(&out_dir) {
             Ok(_) => (),
             Err(_) => return Err(format!("Failed out create dir {out}")),
@@ -63,8 +68,10 @@ fn skeleton_classes(
         (subdivisions, subdivision_idxs) =
             crate::utils::apply_flips(&subdivisions, &flips, &subdivision_idxs, subdivisions.len());
 
-        let mut buckets: std::collections::HashMap<String, Vec<graph::Graph>> =
-            std::collections::HashMap::new();
+        let mut buckets: std::collections::HashMap<
+            String,
+            Vec<(graph::Graph, subdivision::Subdivision)>,
+        > = std::collections::HashMap::new();
 
         let filter = match crate::utils::parse_nonplanar_hashes(&nontroplanar_file) {
             Some(f) => f,
@@ -78,11 +85,11 @@ fn skeleton_classes(
             let insert = filter.contains(&key);
             if insert {
                 if let Some(v) = buckets.get_mut(&key) {
-                    if v.iter().all(|g| !g.is_isomorphic(&skeletonized_graph)) {
-                        v.push(skeletonized_graph);
+                    if v.iter().all(|(g, _)| !g.is_isomorphic(&skeletonized_graph)) {
+                        v.push((skeletonized_graph, subd.clone()));
                     }
                 } else {
-                    buckets.insert(key, vec![skeletonized_graph]);
+                    buckets.insert(key, vec![(skeletonized_graph, subd.clone())]);
                 };
             }
         }
@@ -97,8 +104,9 @@ fn skeleton_classes(
                     ))
                 }
             };
-            for graph in graphs {
-                match out_f.write_fmt(format_args!("{}\n", graph)) {
+            for (graph, subd) in graphs {
+                match out_f.write_fmt(format_args!("Skeleton: {}\nSubdivision: {}\n", graph, subd))
+                {
                     Ok(_) => (),
                     Err(_) => {
                         return Err(format!(
