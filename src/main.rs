@@ -41,7 +41,8 @@ fn skeleton_classes(
         let nontroplanar_file = format!("{}/{genus_str}.txt", nontroplanar_dir);
         println!("Computing genus {} graphs of {} triangulations with {} node(s)", genus - node, tfile, node);
 
-        match fs::DirBuilder::new().recursive(true).create(&out) {
+	let out_dir = format!("./{out}/{genus_str}");
+        match fs::DirBuilder::new().recursive(true).create(&out_dir) {
             Ok(_) => (),
             Err(_) => return Err(format!("Failed out create dir {out}")),
         }
