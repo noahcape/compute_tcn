@@ -8,7 +8,7 @@ use clap::Parser;
 use tcn::*;
 
 fn skeleton_classes(
-    nontroplanar_dir: String,
+    // nontroplanar_dir: String,
     genus: usize,
     out: String,
     tfile: String,
@@ -30,7 +30,7 @@ fn skeleton_classes(
     println!("Parsing triangulations and flips from {}", tfile);
     let (mut subdivisions, flips, mut subdivision_idxs) = utils::parse_input(
         fbuf.lines()
-            .map(|l| l.expect(&format!("Could not parse line from {tfile}")))
+            .map(|l| l.unwrap_or_else(|_| panic!("Could not parse line from {tfile}")))
             .collect(),
     );
 
@@ -38,7 +38,7 @@ fn skeleton_classes(
 
     for node in 1..=nodes {
         let genus_str = format!("genus{}", genus - node);
-        let nontroplanar_file = format!("{}/{genus_str}.txt", nontroplanar_dir);
+        // let nontroplanar_file = format!("{}/{genus_str}.txt", nontroplanar_dir);
         println!(
             "Computing genus {} graphs of {} triangulations with {} node(s)",
             genus - node,
@@ -73,25 +73,26 @@ fn skeleton_classes(
             Vec<(graph::Graph, subdivision::Subdivision)>,
         > = std::collections::HashMap::new();
 
-        let filter = match crate::utils::parse_nonplanar_hashes(&nontroplanar_file) {
-            Some(f) => f,
-            None => return Err(format!("Could not read file {}", nontroplanar_file)),
-        };
+        // for now keep filter out
+        // let filter = match crate::utils::parse_nonplanar_hashes(&nontroplanar_file) {
+        //     Some(f) => f,
+        //     None => return Err(format!("Could not read file {}", nontroplanar_file)),
+        // };
 
         for subd in &subdivisions {
             let mut skeletonized_graph = graph::Graph::new_skeleton(subd);
             let key = skeletonized_graph.categorizing_hash();
 
-            let insert = filter.contains(&key);
-            if insert {
-                if let Some(v) = buckets.get_mut(&key) {
-                    if v.iter().all(|(g, _)| !g.is_isomorphic(&skeletonized_graph)) {
-                        v.push((skeletonized_graph, subd.clone()));
-                    }
-                } else {
-                    buckets.insert(key, vec![(skeletonized_graph, subd.clone())]);
-                };
-            }
+            // let insert = filter.contains(&key);
+            // if insert {
+            if let Some(v) = buckets.get_mut(&key) {
+                if v.iter().all(|(g, _)| !g.is_isomorphic(&skeletonized_graph)) {
+                    v.push((skeletonized_graph, subd.clone()));
+                }
+            } else {
+                buckets.insert(key, vec![(skeletonized_graph, subd.clone())]);
+            };
+            // }
         }
 
         // write all graphs up to isomorphism grouped by (Loops:Bridges:Bi-Edges:Sprawling)
@@ -115,7 +116,7 @@ fn skeleton_classes(
                     }
                 };
             }
-            match out_f.write(b"\n") {
+            match out_f.write_all(b"\n") {
                 Ok(_) => (),
                 Err(_) => return Err(format!("Failed to write to file {out}/{genus_str}!")),
             };
@@ -125,6 +126,11 @@ fn skeleton_classes(
     Ok(())
 }
 
+/// Read from std::in
+fn compute_maximal_polygons() {
+    tcn::utils::maximal_polygon_classes();
+}
+
 /// Program to compute trivalent graphs dual to nodal subdivisions of Newton polygons
 /// expecting topcom triangulations and flips in command line
 #[derive(Parser, Debug)]
@@ -132,26 +138,43 @@ fn skeleton_classes(
 struct Args {
     /// Directory containing nonplanar graph classes for genus..=genus + 3
     #[arg(short, long)]
-    nontroplanar_dir: String,
+    nontroplanar_dir: Option<String>,
 
     /// Interior points of lattice polygon computing on
     /// will automatically compute up to nodes = genus - 3
     #[arg(short, long)]
-    genus: usize,
+    genus: Option<usize>,
 
     /// Directory to write file out to
     #[arg(short, long)]
-    out: String,
+    out: Option<String>,
 
     /// Topcom file with triangulations and flips
     #[arg(short, long)]
-    tfile: String,
+    tfile: Option<String>,
+
+    /// Use this command to compute maximal polygons given all polygons of specific genus
+    #[arg(short, long)]
+    polygons: bool,
+
+    /// Use this command to compute all nodal subdivisions and associated skeletons given TOPCOM triangulations
+    #[arg(short, long)]
+    subdivisions: bool,
 }
 
 fn main() {
     let args = Args::parse();
-    match skeleton_classes(args.nontroplanar_dir, args.genus, args.out, args.tfile) {
-        Ok(_) => (),
-        Err(e) => panic!("{e}"),
-    };
+
+    match args.polygons {
+        true => compute_maximal_polygons(),
+        false => match skeleton_classes(
+            // args.nontroplanar_dir.unwrap(),
+            args.genus.unwrap(),
+            args.out.unwrap(),
+            args.tfile.unwrap(),
+        ) {
+            Ok(_) => (),
+            Err(e) => panic!("{e}"),
+        },
+    }
 }
